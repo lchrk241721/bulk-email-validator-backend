@@ -9,7 +9,14 @@ const PORT = process.env.PORT || 3001;
 
 // Security middleware
 app.use(helmet());
-app.use(cors());
+//app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:3000',
+    'https://bulkemailvalidator.linkwatch.in' // Your Hostinger domain
+  ],
+  credentials: true
+}));
 
 // Rate limiting
 const limiter = rateLimit({
@@ -39,6 +46,14 @@ app.use((error, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
+// Serve static files in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../frontend/dist')));
+}
+
+/*app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});*/
+app.listen(config.port, () => {
+  console.log(`Server running in ${process.env.NODE_ENV} mode on port ${config.port}`);
 });

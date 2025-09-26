@@ -1,6 +1,10 @@
 const emailValidatorService = require('../services/EmailValidatorService');
 const csv = require('csv-parser');
 const stream = require('stream');
+const MakeController = require('./makeController'); // Import the class
+
+// Create an instance of MakeController
+const makeController = new MakeController();
 
 class EmailController {
   async validateBulk(req, res) {

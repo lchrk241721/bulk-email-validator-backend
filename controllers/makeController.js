@@ -5,8 +5,9 @@ class MakeController {
     try {
       const { emails, webhook_url, api_key, format = 'json' } = req.body;
 
-      // Simple API key validation (you can make this more secure)
-      if (!api_key || api_key !== process.env.MAKE_API_KEY) {
+      // Simple API key validation
+      const expectedApiKey = process.env.MAKE_API_KEY || 'make_default_key_123';
+      if (!api_key || api_key !== expectedApiKey) {
         return res.status(401).json({
           error: 'Invalid API key',
           message: 'Please provide a valid API key'
@@ -25,6 +26,11 @@ class MakeController {
         });
       }
 
+      console.log('Make.com integration request received:', { 
+        emailCount: emails.length,
+        format: format 
+      });
+
       // Validate emails
       const results = await emailValidatorService.validateBulkEmails(emails);
       const summary = emailValidatorService.getValidationSummary(results);
@@ -35,6 +41,7 @@ class MakeController {
         response = this.formatAsCSV(results);
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', 'attachment; filename=email-validation-results.csv');
+        res.send(response);
       } else {
         response = {
           success: true,
@@ -42,8 +49,8 @@ class MakeController {
             total: summary.total,
             valid: summary.valid,
             invalid: summary.invalid,
-            validity_rate: ((summary.valid / summary.total) * 100).toFixed(2),
-            role_accounts: summary.roleAccounts
+            validity_rate: summary.total > 0 ? ((summary.valid / summary.total) * 100).toFixed(2) : 0,
+            role_accounts: summary.roleAccounts || 0
           },
           results: results.map(result => ({
             email: result.email,
@@ -54,27 +61,26 @@ class MakeController {
           })),
           timestamp: new Date().toISOString()
         };
-        res.setHeader('Content-Type', 'application/json');
-      }
-
-      // If webhook URL provided, send results there as well
-      if (webhook_url) {
-        try {
-          await this.sendToWebhook(webhook_url, response, api_key);
-        } catch (webhookError) {
-          console.error('Webhook delivery failed:', webhookError.message);
+        
+        // If webhook URL provided, send results there as well
+        if (webhook_url) {
+          try {
+            await this.sendToWebhook(webhook_url, response, api_key);
+            response.webhook_delivered = true;
+          } catch (webhookError) {
+            console.error('Webhook delivery failed:', webhookError.message);
+            response.webhook_delivered = false;
+            response.webhook_error = webhookError.message;
+          }
         }
-      }
 
-      if (format === 'csv') {
-        res.send(response);
-      } else {
         res.json(response);
       }
 
     } catch (error) {
       console.error('Make.com integration error:', error);
       res.status(500).json({
+        success: false,
         error: 'Failed to validate emails',
         message: error.message
       });
@@ -105,13 +111,13 @@ class MakeController {
     
     const csvRows = results.map(result => {
       const row = [
-        `"${result.email}"`,
+        `"${result.email.replace(/"/g, '""')}"`,
         result.valid ? 'YES' : 'NO',
         result.checks.syntax ? 'PASS' : 'FAIL',
         result.checks.domain ? 'PASS' : 'FAIL',
         result.checks.disposable ? 'FAIL' : 'PASS',
         result.checks.roleAccount ? 'YES' : 'NO',
-        `"${result.reason}"`,
+        `"${result.reason.replace(/"/g, '""')}"`,
         result.validationTime
       ];
       return row.join(',');
@@ -128,7 +134,8 @@ class MakeController {
         'X-API-Key': api_key,
         'User-Agent': 'BulkEmailValidator/1.0.0'
       },
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
+      timeout: 10000 // 10 second timeout
     });
 
     if (!response.ok) {
@@ -139,4 +146,4 @@ class MakeController {
   }
 }
 
-module.exports = new MakeController();
+module.exports = MakeController;

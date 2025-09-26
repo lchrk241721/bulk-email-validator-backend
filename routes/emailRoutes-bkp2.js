@@ -1,6 +1,6 @@
 const express = require('express');
 const multer = require('multer');
-const emailController = require('../controllers/emailController');
+const emailController = require('../controllers/emailController-bkp2');
 
 const router = express.Router();
 const upload = multer({
@@ -31,7 +31,7 @@ router.post('/upload-csv', upload.single('file'), emailController.parseCSV);
 
 // Make.com integration routes
 router.post('/make/integration', (req, res) => emailController.makeIntegration(req, res));
-router.post('/make/webhook-test', (req, res) => emailController.makeWebhookTest(req, res));
-router.get('/make/status', (req, res) => emailController.makeStatus(req, res));
+//router.post('/make/webhook', (req, res) => emailController.makeWebhookTest(req, res));
+router.post('/make-webhook-test', (req, res) => emailController.makeWebhookTest(req, res));
 
 module.exports = router;

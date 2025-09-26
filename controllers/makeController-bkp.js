@@ -17,7 +17,6 @@ class MakeController {
       const expectedApiKey = process.env.MAKE_API_KEY || 'make_default_key_123';
       if (!api_key || api_key !== expectedApiKey) {
         return res.status(401).json({
-          success: false,
           error: 'Invalid API key',
           message: 'Please provide a valid API key'
         });
@@ -25,14 +24,12 @@ class MakeController {
 
       if (!emails || !Array.isArray(emails)) {
         return res.status(400).json({
-          success: false,
           error: 'Emails array is required'
         });
       }
 
       if (emails.length > 5000) {
         return res.status(400).json({
-          success: false,
           error: 'Maximum 5,000 emails allowed per request for Make.com integration'
         });
       }
@@ -52,7 +49,7 @@ class MakeController {
         response = this.formatAsCSV(results);
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', 'attachment; filename=email-validation-results.csv');
-        return res.send(response);
+        res.send(response);
       } else {
         response = {
           success: true,
@@ -78,7 +75,6 @@ class MakeController {
           try {
             await this.sendToWebhook(webhook_url, response, api_key);
             response.webhook_delivered = true;
-            response.webhook_url = webhook_url;
           } catch (webhookError) {
             console.error('Webhook delivery failed:', webhookError.message);
             response.webhook_delivered = false;
@@ -99,70 +95,15 @@ class MakeController {
     }
   }
 
-  async makeWebhookTest(req, res) {
-    try {
-      const { webhook_url, api_key } = req.body;
-
-      // Validate API key
-      const expectedApiKey = process.env.MAKE_API_KEY || 'make_default_key_123';
-      if (!api_key || api_key !== expectedApiKey) {
-        return res.status(401).json({
-          success: false,
-          error: 'Invalid API key'
-        });
-      }
-
-      if (!webhook_url) {
-        return res.status(400).json({
-          success: false,
-          error: 'Webhook URL is required'
-        });
-      }
-
-      // Test webhook with sample data
-      const testData = {
-        success: true,
-        test: true,
-        message: 'Webhook test from Bulk Email Validator',
-        timestamp: new Date().toISOString(),
-        sample_data: {
-          total: 3,
-          valid: 2,
-          invalid: 1,
-          validity_rate: "66.67"
-        }
-      };
-
-      const webhookResponse = await this.sendToWebhook(webhook_url, testData, api_key);
-      
-      res.json({
-        success: true,
-        message: 'Webhook test delivered successfully',
-        webhook_status: webhookResponse.status,
-        webhook_status_text: webhookResponse.statusText,
-        timestamp: new Date().toISOString()
-      });
-
-    } catch (error) {
-      console.error('Webhook test error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Webhook test failed',
-        message: error.message
-      });
-    }
-  }
-
-  async makeStatus(req, res) {
-    // Simple status endpoint for Make.com to test connectivity
-    res.json({
+  async makeWebhookTest(webhook_url, webhooktestdata, make_default_key_123) {
+    // Test endpoint for Make.com webhook setup
+    const webhooktestdata = res.json({
       status: 'success',
       message: 'Bulk Email Validator API is working',
       version: '1.0.0',
       timestamp: new Date().toISOString(),
       endpoints: {
         make_integration: 'POST /api/email/make/integration',
-        make_webhook_test: 'POST /api/email/make/webhook-test',
         features: [
           'Syntax validation',
           'Domain MX records check',
@@ -171,6 +112,23 @@ class MakeController {
         ]
       }
     });
+    const response = await fetch(webhook_url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': 'make_default_key_123',
+        'User-Agent': 'BulkEmailValidator/1.0.0'
+      },
+      body: JSON.stringify(webhooktestdata),
+      timeout: 10000 // 10 second timeout
+    });
+
+    if (!response.ok) {
+      throw new Error(`Webhook delivery failed: ${response.status} ${response.statusText}`);
+    }
+
+    return response;
+    
   }
 
   formatAsCSV(results) {
@@ -184,7 +142,7 @@ class MakeController {
         result.checks.domain ? 'PASS' : 'FAIL',
         result.checks.disposable ? 'FAIL' : 'PASS',
         result.checks.roleAccount ? 'YES' : 'NO',
-        `"${(result.reason || '').replace(/"/g, '""')}"`,
+        `"${result.reason.replace(/"/g, '""')}"`,
         result.validationTime
       ];
       return row.join(',');

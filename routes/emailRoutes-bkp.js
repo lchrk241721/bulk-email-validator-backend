@@ -20,11 +20,8 @@ const upload = multer({
 // Single email validation
 router.post('/validate', emailController.validateSingle);
 
-// Bulk email validation (without progress)
+// Bulk email validation
 router.post('/validate-bulk', emailController.validateBulk);
-
-// Bulk email validation with progress updates
-router.post('/validate-bulk-progress', emailController.validateBulkWithProgress);
 
 // CSV upload and parsing
 router.post('/upload-csv', upload.single('file'), emailController.parseCSV);

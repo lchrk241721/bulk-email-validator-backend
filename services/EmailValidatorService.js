@@ -154,7 +154,7 @@ class EmailValidatorService {
     });
   }
 
-  async validateEmail(email) {
+  async validateEmail(email, enableSMTP = true) {
     const startTime = Date.now();
     
     // Basic validation
@@ -249,14 +249,14 @@ class EmailValidatorService {
     return result;
   }
 
-  async validateBulkEmails(emails, progressCallback = null) {
+  async validateBulkEmails(emails, progressCallback = null, enableSMTP = true) {
     const results = [];
     const total = emails.length;
     
     for (let i = 0; i < emails.length; i++) {
       const email = emails[i];
       try {
-        const result = await this.validateEmail(email);
+        const result = await this.validateEmail(email, enableSMTP);
         results.push(result);
         
         // Progress callback
@@ -270,7 +270,7 @@ class EmailValidatorService {
         }
         
         // Small delay to avoid overwhelming DNS servers
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise(resolve => setTimeout(resolve, enableSMTP ? 100 : 10));
       } catch (error) {
         results.push({
           email,

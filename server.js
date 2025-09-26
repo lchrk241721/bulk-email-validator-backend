@@ -1,57 +1,55 @@
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
 const emailRoutes = require('./routes/emailRoutes');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
 
-// Security middleware
-app.use(helmet());
-//app.use(cors());
-app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'https://bulkemailvalidator.linkwatch.in' // Your Hostinger domain
-  ],
-  credentials: true
-}));
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
-});
-app.use(limiter);
-
-// Body parsing middleware
+// Middleware
+app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/api/email', emailRoutes);
 
-// Health check
+// Health check route
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.status(200).json({ status: 'OK', message: 'Server is running' });
 });
 
-// Error handling middleware
-app.use((error, req, res, next) => {
-  console.error('Error:', error);
-  res.status(500).json({ 
-    error: 'Internal server error',
-    message: error.message 
+// Root route
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Bulk Email Validator API', 
+    version: '1.0.0',
+    endpoints: {
+      validate: '/api/email/validate',
+      bulkValidate: '/api/email/validate-bulk',
+      bulkValidateWithProgress: '/api/email/validate-bulk-progress',
+      uploadCSV: '/api/email/upload-csv'
+    }
   });
 });
 
-// Serve static files in production
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err.message);
+  res.status(500).json({ 
+    error: 'Internal server error',
+    message: err.message 
+  });
+});
 
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
 
-/*app.listen(PORT, () => {
+// Get port from environment variable or use default
+const PORT = process.env.PORT || 3000;
+
+// Start server
+app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-});*/
-app.listen(config.port, () => {
-  console.log(`Server running in ${process.env.NODE_ENV} mode on port ${config.port}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });

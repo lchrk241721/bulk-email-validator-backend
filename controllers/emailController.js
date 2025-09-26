@@ -163,6 +163,15 @@ class EmailController {
         });
       });
   }
+
+  // Add these methods to delegate to makeController
+  async makeIntegration(req, res) {
+    return makeController.makeIntegration(req, res);
+  }
+
+  async makeWebhookTest(req, res) {
+    return makeController.makeWebhookTest(req, res);
+  }
 }
 
 module.exports = new EmailController();

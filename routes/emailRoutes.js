@@ -29,4 +29,8 @@ router.post('/validate-bulk-progress', emailController.validateBulkWithProgress)
 // CSV upload and parsing
 router.post('/upload-csv', upload.single('file'), emailController.parseCSV);
 
+// New Make.com integration routes
+router.post('/make/integration', emailController.makeIntegration);
+router.get('/make/webhook', emailController.makeWebhookTest);
+
 module.exports = router;

@@ -12,6 +12,11 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/api/email', emailRoutes);
 
+// Make.com integration documentation
+app.get('/make-integration', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'make-integration.html'));
+});
+
 // Health check route
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Server is running' });
@@ -22,11 +27,13 @@ app.get('/', (req, res) => {
   res.json({ 
     message: 'Bulk Email Validator API', 
     version: '1.0.0',
+    make_integration: '/make-integration',
     endpoints: {
       validate: '/api/email/validate',
       bulkValidate: '/api/email/validate-bulk',
       bulkValidateWithProgress: '/api/email/validate-bulk-progress',
-      uploadCSV: '/api/email/upload-csv'
+      uploadCSV: '/api/email/upload-csv',
+      makeIntegration: '/api/email/make/integration'
     }
   });
 });

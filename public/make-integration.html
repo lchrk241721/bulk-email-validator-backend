@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Make.com Integration - Bulk Email Validator</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .header { background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 30px; }
+        .code-block { background: #f8f8f8; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        .endpoint { background: #e8f4fd; padding: 10px; margin: 10px 0; border-left: 4px solid #2196F3; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Make.com Integration Guide</h1>
+            <p>Connect your Bulk Email Validator with Make.com workflows</p>
+        </div>
+
+        <h2>API Endpoints</h2>
+        
+        <div class="endpoint">
+            <h3>1. Test Endpoint</h3>
+            <div class="code-block">
+                <strong>GET</strong> https://your-domain.com/api/email/make/webhook<br>
+                <strong>Purpose:</strong> Verify API connectivity
+            </div>
+        </div>
+
+        <div class="endpoint">
+            <h3>2. Main Integration Endpoint</h3>
+            <div class="code-block">
+                <strong>POST</strong> https://your-domain.com/api/email/make/integration<br>
+                <strong>Content-Type:</strong> application/json
+            </div>
+        </div>
+
+        <h2>Request Format</h2>
+        <div class="code-block">
+<pre>{
+  "api_key": "your_api_key_here",
+  "emails": [
+    "test1@example.com",
+    "test2@example.com",
+    "invalid-email"
+  ],
+  "webhook_url": "https://your-webhook-url.com", // Optional
+  "format": "json" // Optional: "json" or "csv"
+}</pre>
+        </div>
+
+        <h2>Response Format (JSON)</h2>
+        <div class="code-block">
+<pre>{
+  "success": true,
+  "summary": {
+    "total": 3,
+    "valid": 2,
+    "invalid": 1,
+    "validity_rate": "66.67",
+    "role_accounts": 0
+  },
+  "results": [
+    {
+      "email": "test1@example.com",
+      "valid": true,
+      "checks": {
+        "syntax": true,
+        "domain": true,
+        "disposable": false,
+        "roleAccount": false
+      },
+      "reason": "Valid email address",
+      "validation_time": 45
+    }
+  ],
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}</pre>
+        </div>
+
+        <h2>Make.com Scenario Setup</h2>
+        
+        <h3>Step 1: HTTP Module</h3>
+        <ol>
+            <li>Add an <strong>HTTP > Make a Request</strong> module</li>
+            <li>Set URL to: <code>https://your-domain.com/api/email/make/integration</code></li>
+            <li>Method: <code>POST</code></li>
+            <li>Headers: <code>Content-Type: application/json</code></li>
+        </ol>
+
+        <h3>Step 2: Request Body</h3>
+        <div class="code-block">
+<pre>{
+  "api_key": "{{1.api_key}}",
+  "emails": "{{2.emails}}", // From previous module
+  "webhook_url": "{{3.webhook_url}}", // Optional
+  "format": "json"
+}</pre>
+        </div>
+
+        <h3>Step 3: Parse Response</h3>
+        <p>Use the response data in subsequent modules:</p>
+        <ul>
+            <li><code>{{4.body.summary.valid}}</code> - Number of valid emails</li>
+            <li><code>{{4.body.results[0].valid}}</code> - Validation result for first email</li>
+            <li><code>{{4.body.results[0].reason}}</code> - Reason for validation status</li>
+        </ul>
+
+        <h2>Example Use Cases</h2>
+        
+        <h3>1. Validate New CRM Contacts</h3>
+        <p>Trigger: New contact added to CRM → Validate email → Update contact status</p>
+        
+        <h3>2. Email Marketing List Cleaning</h3>
+        <p>Trigger: Scheduled weekly → Validate mailing list → Segment by validity</p>
+        
+        <h3>3. Lead Generation Pipeline</h3>
+        <p>Trigger: New lead captured → Validate email → Route to appropriate sales funnel</p>
+
+        <h2>Error Handling</h2>
+        <div class="code-block">
+<pre>{
+  "error": "Error type",
+  "message": "Detailed error message"
+}</pre>
+        </div>
+
+        <h2>Rate Limits</h2>
+        <ul>
+            <li>Max emails per request: 5,000</li>
+            <li>Requests per minute: 60</li>
+            <li>File upload size: 5MB</li>
+        </ul>
+
+        <h2>Support</h2>
+        <p>For integration support, contact: support@your-domain.com</p>
+    </div>
+</body>
+</html>

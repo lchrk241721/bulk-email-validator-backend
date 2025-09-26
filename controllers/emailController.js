@@ -5,7 +5,7 @@ const stream = require('stream');
 class EmailController {
   async validateBulk(req, res) {
     try {
-      const { emails } = req.body;
+      const { emails, enableSMTP = true } = req.body;
       
       if (!emails || !Array.isArray(emails)) {
         return res.status(400).json({
@@ -19,7 +19,7 @@ class EmailController {
         });
       }
 
-      const results = await emailValidatorService.validateBulkEmails(emails);
+      const results = await emailValidatorService.validateBulkEmails(emails, null, enableSMTP);
       const summary = emailValidatorService.getValidationSummary(results);
 
       res.json({
@@ -39,7 +39,7 @@ class EmailController {
 
   async validateBulkWithProgress(req, res) {
   try {
-    const { emails } = req.body;
+    const { emails, enableSMTP = true } = req.body;
     
     if (!emails || !Array.isArray(emails)) {
       return res.status(400).json({
@@ -62,7 +62,7 @@ class EmailController {
     });
 
     // Send initial connection message
-    res.write('data: ' + JSON.stringify({ type: 'connected', data: { total: emails.length } }) + '\n\n');
+    res.write('data: ' + JSON.stringify({ type: 'connected', data: { total: emails.length, enableSMTP: enableSMTP } }) + '\n\n');
 
     const results = await emailValidatorService.validateBulkEmails(
       emails,
@@ -77,7 +77,8 @@ class EmailController {
         } catch (error) {
           console.error('Error sending progress update:', error);
         }
-      }
+      },
+      enableSMTP
     );
 
     const summary = emailValidatorService.getValidationSummary(results);

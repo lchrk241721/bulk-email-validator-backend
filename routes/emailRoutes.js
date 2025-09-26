@@ -20,10 +20,18 @@ const upload = multer({
 // Single email validation
 router.post('/validate', emailController.validateSingle);
 
-// Bulk email validation
+// Bulk email validation (without progress)
 router.post('/validate-bulk', emailController.validateBulk);
+
+// Bulk email validation with progress updates
+router.post('/validate-bulk-progress', emailController.validateBulkWithProgress);
 
 // CSV upload and parsing
 router.post('/upload-csv', upload.single('file'), emailController.parseCSV);
+
+// Make.com integration routes
+router.post('/make/integration', (req, res) => emailController.makeIntegration(req, res));
+router.post('/make/webhook-test', (req, res) => emailController.makeWebhookTest(req, res));
+router.get('/make/status', (req, res) => emailController.makeStatus(req, res));
 
 module.exports = router;

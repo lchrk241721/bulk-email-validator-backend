@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const emailRoutes = require('./routes/emailRoutes');
+const path = require('path');
 
 const app = express();
 
@@ -9,12 +10,35 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files
+app.use(express.static('public'));
+
 // Routes
 app.use('/api/email', emailRoutes);
 
 // Make.com integration documentation
 app.get('/make-integration', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'make-integration.html'));
+});
+
+// Make.com integration documentation
+app.get('/make-integration', (req, res) => {
+  res.json({
+    message: 'Make.com Integration Guide',
+    endpoints: {
+      test: 'GET /api/email/make/webhook',
+      validate: 'POST /api/email/make/integration',
+    },
+    example_request: {
+      method: 'POST',
+      url: '/api/email/make/integration',
+      body: {
+        api_key: "your_api_key_here",
+        emails: ["test@example.com", "test2@example.com"],
+        format: "json"
+      }
+    }
+  });
 });
 
 // Health check route

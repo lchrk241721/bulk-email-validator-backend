@@ -1,5 +1,13 @@
 const emailValidatorService = require('../services/EmailValidatorService');
 
+// For Node.js environment, we need to import fetch if it's not available
+let fetch;
+if (typeof window === 'undefined') {
+  fetch = require('node-fetch');
+} else {
+  fetch = window.fetch;
+}
+
 class MakeController {
   async makeIntegration(req, res) {
     try {

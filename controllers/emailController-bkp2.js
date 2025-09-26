@@ -38,68 +38,49 @@ class EmailController {
   }
 
   async validateBulkWithProgress(req, res) {
-  try {
-    const { emails } = req.body;
-    
-    if (!emails || !Array.isArray(emails)) {
-      return res.status(400).json({
-        error: 'Emails array is required'
-      });
-    }
-
-    if (emails.length > 10000) {
-      return res.status(400).json({
-        error: 'Maximum 10,000 emails allowed per request'
-      });
-    }
-
-    // Set headers for Server-Sent Events
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'Access-Control-Allow-Origin': '*',
-    });
-
-    // Send initial connection message
-    res.write('data: ' + JSON.stringify({ type: 'connected', data: { total: emails.length } }) + '\n\n');
-
-    const results = await emailValidatorService.validateBulkEmails(
-      emails,
-      (progress) => {
-        // Send progress update as SSE with proper formatting
-        try {
-          const progressData = JSON.stringify({ 
-            type: 'progress', 
-            data: progress 
-          });
-          res.write('data: ' + progressData + '\n\n');
-        } catch (error) {
-          console.error('Error sending progress update:', error);
-        }
+    try {
+      const { emails } = req.body;
+      
+      if (!emails || !Array.isArray(emails)) {
+        return res.status(400).json({
+          error: 'Emails array is required'
+        });
       }
-    );
 
-    const summary = emailValidatorService.getValidationSummary(results);
-    
-    // Send final result
-    const completeData = JSON.stringify({ 
-      type: 'complete', 
-      data: { results, summary } 
-    });
-    res.write('data: ' + completeData + '\n\n');
-    res.end();
-    
-  } catch (error) {
-    console.error('Bulk validation with progress error:', error);
-    const errorData = JSON.stringify({ 
-      type: 'error', 
-      data: { error: error.message } 
-    });
-    res.write('data: ' + errorData + '\n\n');
-    res.end();
+      if (emails.length > 10000) {
+        return res.status(400).json({
+          error: 'Maximum 10,000 emails allowed per request'
+        });
+      }
+
+      // Set headers for Server-Sent Events
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+      });
+
+      const results = await emailValidatorService.validateBulkEmails(
+        emails,
+        (progress) => {
+          // Send progress update as SSE
+          res.write(`data: ${JSON.stringify({ type: 'progress', data: progress })}\n\n`);
+        }
+      );
+
+      const summary = emailValidatorService.getValidationSummary(results);
+      
+      // Send final result
+      res.write(`data: ${JSON.stringify({ type: 'complete', data: { results, summary } })}\n\n`);
+      res.end();
+      
+    } catch (error) {
+      console.error('Bulk validation with progress error:', error);
+      res.write(`data: ${JSON.stringify({ type: 'error', data: { error: error.message } })}\n\n`);
+      res.end();
+    }
   }
-}
 
   async validateSingle(req, res) {
     try {

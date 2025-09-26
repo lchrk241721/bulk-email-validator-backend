@@ -1,6 +1,6 @@
 const express = require('express');
 const multer = require('multer');
-const emailController = require('../controllers/emailController');
+const emailController = require('../controllers/emailController-bkp2');
 
 const router = express.Router();
 const upload = multer({

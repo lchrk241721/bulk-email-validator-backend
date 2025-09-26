@@ -2,12 +2,10 @@ const dns = require('dns').promises;
 const validator = require('validator');
 const fs = require('fs').promises;
 const path = require('path');
-const net = require('net');
 
 class EmailValidatorService {
   constructor() {
     this.disposableDomains = new Set();
-    this.loadDisposableDomains();
     this.roleBasedPrefixes = new Set([
       'admin', 'administrator', 'webmaster', 'info', 'contact', 'support',
       'help', 'sales', 'marketing', 'billing', 'payments', 'accounts',
@@ -23,6 +21,7 @@ class EmailValidatorService {
       'management', 'executive', 'ceo', 'cto', 'cfo', 'cio', 'director',
       'manager', 'supervisor', 'owner', 'founder', 'cofounder'
     ]);
+    this.loadDisposableDomains();
   }
 
   async loadDisposableDomains() {
@@ -80,81 +79,7 @@ class EmailValidatorService {
     }
   }
 
-  //SMTP Verification
-  async verifySMTP(email) {
-    return new Promise(async (resolve) => {
-      try {
-        const domain = email.split('@')[1];
-        
-        // Get MX records
-        const mxRecords = await dns.resolveMx(domain);
-        if (!mxRecords || mxRecords.length === 0) {
-          resolve({ valid: false, error: 'No MX records found' });
-          return;
-        }
-
-        // Sort MX records by priority
-        mxRecords.sort((a, b) => a.priority - b.priority);
-        
-        const mxRecord = mxRecords[0].exchange;
-        const timeout = 10000; // 10 seconds timeout
-        
-        const socket = net.createConnection(25, mxRecord);
-        
-        let response = '';
-        let validated = false;
-        
-        const timeoutId = setTimeout(() => {
-          socket.destroy();
-          resolve({ valid: false, error: 'SMTP connection timeout' });
-        }, timeout);
-        
-        socket.setTimeout(timeout);
-        
-        socket.on('connect', () => {
-          // Send EHLO
-          socket.write(`EHLO ${domain}\r\n`);
-        });
-        
-        socket.on('data', (data) => {
-          response += data.toString();
-          
-          if (response.includes('220') && response.includes('EHLO')) {
-            // Send MAIL FROM
-            socket.write(`MAIL FROM: <check@${domain}>\r\n`);
-          } else if (response.includes('250') && response.includes('MAIL FROM')) {
-            // Send RCPT TO
-            socket.write(`RCPT TO: <${email}>\r\n`);
-          } else if (response.includes('250') && response.includes('RCPT TO')) {
-            clearTimeout(timeoutId);
-            validated = true;
-            socket.write('QUIT\r\n');
-            resolve({ valid: true, response: 'Mailbox exists' });
-          } else if (response.includes('550') || response.includes('551') || response.includes('553')) {
-            clearTimeout(timeoutId);
-            socket.write('QUIT\r\n');
-            resolve({ valid: false, error: 'Mailbox does not exist' });
-          }
-        });
-        
-        socket.on('error', (error) => {
-          clearTimeout(timeoutId);
-          resolve({ valid: false, error: error.message });
-        });
-        
-        socket.on('close', () => {
-          if (!validated) {
-            resolve({ valid: false, error: 'Connection closed unexpectedly' });
-          }
-        });
-        
-      } catch (error) {
-        resolve({ valid: false, error: error.message });
-      }
-    });
-  }
-
-  async validateEmail(email, enableSMTP = true) {
+  async validateEmail(email) {
     const startTime = Date.now();
     
     // Basic validation
@@ -165,11 +90,10 @@ class EmailValidatorService {
         reason: 'Invalid email format',
         validationTime: 0,
         checks: {
-          syntax : false,
-          disposable : false,
-          domain : false,
-          smtp : false,
-          roleAccount : false
+          syntax: false,
+          disposable: false,
+          domain: false,
+          roleAccount: false
         }
       };
     }
@@ -182,12 +106,10 @@ class EmailValidatorService {
         syntax: false,
         disposable: false,
         domain: false,
-        smtp: false,
         roleAccount: false
       },
       details: {
-        roleAccount: null,
-        smtpResponse: null
+        roleAccount: null
       },
       reason: '',
       validationTime: 0
@@ -222,25 +144,6 @@ class EmailValidatorService {
     result.checks.roleAccount = roleCheck.isRole;
     result.details.roleAccount = roleCheck;
 
-    // SMTP verification (only if domain check passed)
-    if (enableSMTP) {
-      try {
-        const smtpResult = await this.verifySMTP(trimmedEmail);
-        result.checks.smtp = smtpResult.valid;
-        result.details.smtpResponse = smtpResult;
-        
-        if (!smtpResult.valid) {
-          result.reason = 'Mailbox does not exist (SMTP verification failed)';
-          result.validationTime = Date.now() - startTime;
-          return result;
-        }
-      } catch (error) {
-        result.checks.smtp = false;
-        result.details.smtpResponse = { error: error.message };
-        // Don't fail validation if SMTP check fails, just note it
-      }
-    }
-
     // All checks passed
     result.valid = true;
     result.reason = 'Valid email address';
@@ -249,14 +152,14 @@ class EmailValidatorService {
     return result;
   }
 
-  async validateBulkEmails(emails, progressCallback = null, enableSMTP = true) {
+  async validateBulkEmails(emails, progressCallback = null) {
     const results = [];
     const total = emails.length;
     
     for (let i = 0; i < emails.length; i++) {
       const email = emails[i];
       try {
-        const result = await this.validateEmail(email, enableSMTP);
+        const result = await this.validateEmail(email);
         results.push(result);
         
         // Progress callback
@@ -270,7 +173,7 @@ class EmailValidatorService {
         }
         
         // Small delay to avoid overwhelming DNS servers
-        await new Promise(resolve => setTimeout(resolve, enableSMTP ? 100 : 10));
+        await new Promise(resolve => setTimeout(resolve, 10));
       } catch (error) {
         results.push({
           email,
@@ -281,7 +184,6 @@ class EmailValidatorService {
             syntax: false,
             disposable: false,
             domain: false,
-            smtp: false,
             roleAccount: false
           }
         });
@@ -297,14 +199,12 @@ class EmailValidatorService {
       valid: 0,
       invalid: 0,
       reasons: {},
-      roleAccounts: 0,
-      smtpVerified: 0
+      roleAccounts: 0
     };
 
     results.forEach(result => {
       if (result.valid) {
         summary.valid++;
-        if (result.checks.smtp) summary.smtpVerified++;
         if (result.checks.roleAccount) summary.roleAccounts++;
       } else {
         summary.invalid++;

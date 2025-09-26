@@ -5,7 +5,7 @@ const stream = require('stream');
 class EmailController {
   async validateBulk(req, res) {
     try {
-      const { emails, enableSMTP = true } = req.body;
+      const { emails } = req.body;
       
       if (!emails || !Array.isArray(emails)) {
         return res.status(400).json({
@@ -19,7 +19,7 @@ class EmailController {
         });
       }
 
-      const results = await emailValidatorService.validateBulkEmails(emails, null, enableSMTP);
+      const results = await emailValidatorService.validateBulkEmails(emails);
       const summary = emailValidatorService.getValidationSummary(results);
 
       res.json({
@@ -38,69 +38,73 @@ class EmailController {
   }
 
   async validateBulkWithProgress(req, res) {
-  try {
-    const { emails, enableSMTP = true } = req.body;
-    
-    if (!emails || !Array.isArray(emails)) {
-      return res.status(400).json({
-        error: 'Emails array is required'
+    try {
+      const { emails } = req.body;
+      
+      if (!emails || !Array.isArray(emails)) {
+        return res.status(400).json({
+          error: 'Emails array is required'
+        });
+      }
+
+      if (emails.length > 10000) {
+        return res.status(400).json({
+          error: 'Maximum 10,000 emails allowed per request'
+        });
+      }
+
+      // Set headers for Server-Sent Events
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
       });
-    }
 
-    if (emails.length > 10000) {
-      return res.status(400).json({
-        error: 'Maximum 10,000 emails allowed per request'
-      });
-    }
+      // Send initial connection message
+      res.write('data: ' + JSON.stringify({ 
+        type: 'connected', 
+        data: { 
+          total: emails.length
+        } 
+      }) + '\n\n');
 
-    // Set headers for Server-Sent Events
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'Access-Control-Allow-Origin': '*',
-    });
-
-    // Send initial connection message
-    res.write('data: ' + JSON.stringify({ type: 'connected', data: { total: emails.length, enableSMTP: enableSMTP } }) + '\n\n');
-
-    const results = await emailValidatorService.validateBulkEmails(
-      emails,
-      (progress) => {
-        // Send progress update as SSE with proper formatting
-        try {
-          const progressData = JSON.stringify({ 
-            type: 'progress', 
-            data: progress 
-          });
-          res.write('data: ' + progressData + '\n\n');
-        } catch (error) {
-          console.error('Error sending progress update:', error);
+      const results = await emailValidatorService.validateBulkEmails(
+        emails,
+        (progress) => {
+          // Send progress update as SSE with proper formatting
+          try {
+            const progressData = JSON.stringify({ 
+              type: 'progress', 
+              data: progress 
+            });
+            res.write('data: ' + progressData + '\n\n');
+          } catch (error) {
+            console.error('Error sending progress update:', error);
+          }
         }
-      },
-      enableSMTP
-    );
+      );
 
-    const summary = emailValidatorService.getValidationSummary(results);
-    
-    // Send final result
-    const completeData = JSON.stringify({ 
-      type: 'complete', 
-      data: { results, summary } 
-    });
-    res.write('data: ' + completeData + '\n\n');
-    res.end();
-    
-  } catch (error) {
-    console.error('Bulk validation with progress error:', error);
-    const errorData = JSON.stringify({ 
-      type: 'error', 
-      data: { error: error.message } 
-    });
-    res.write('data: ' + errorData + '\n\n');
-    res.end();
+      const summary = emailValidatorService.getValidationSummary(results);
+      
+      // Send final result
+      const completeData = JSON.stringify({ 
+        type: 'complete', 
+        data: { results, summary } 
+      });
+      res.write('data: ' + completeData + '\n\n');
+      res.end();
+      
+    } catch (error) {
+      console.error('Bulk validation with progress error:', error);
+      const errorData = JSON.stringify({ 
+        type: 'error', 
+        data: { error: error.message } 
+      });
+      res.write('data: ' + errorData + '\n\n');
+      res.end();
+    }
   }
-}
 
   async validateSingle(req, res) {
     try {

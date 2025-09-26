@@ -1,12 +1,13 @@
 const emailValidatorService = require('../services/EmailValidatorService');
 const csv = require('csv-parser');
 const stream = require('stream');
-const MakeController = require('./makeController'); // Import the class
-
-// Create an instance of MakeController
-const makeController = new MakeController();
+const MakeController = require('./makeController');
 
 class EmailController {
+  constructor() {
+    this.makeController = new MakeController();
+  }
+
   async validateBulk(req, res) {
     try {
       const { emails } = req.body;
@@ -57,7 +58,6 @@ class EmailController {
         });
       }
 
-      // Set headers for Server-Sent Events
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
@@ -65,7 +65,6 @@ class EmailController {
         'Access-Control-Allow-Origin': '*',
       });
 
-      // Send initial connection message
       res.write('data: ' + JSON.stringify({ 
         type: 'connected', 
         data: { 
@@ -76,7 +75,6 @@ class EmailController {
       const results = await emailValidatorService.validateBulkEmails(
         emails,
         (progress) => {
-          // Send progress update as SSE with proper formatting
           try {
             const progressData = JSON.stringify({ 
               type: 'progress', 
@@ -91,7 +89,6 @@ class EmailController {
 
       const summary = emailValidatorService.getValidationSummary(results);
       
-      // Send final result
       const completeData = JSON.stringify({ 
         type: 'complete', 
         data: { results, summary } 
@@ -148,7 +145,6 @@ class EmailController {
     bufferStream
       .pipe(csv())
       .on('data', (row) => {
-        // Extract email from first column or look for email field
         const email = row.email || row.Email || row.EMAIL || Object.values(row)[0];
         if (email) {
           emails.push(email);
@@ -168,13 +164,17 @@ class EmailController {
       });
   }
 
-  // Add these methods to delegate to makeController
+  // Delegate methods to makeController
   async makeIntegration(req, res) {
-    return makeController.makeIntegration(req, res);
+    return this.makeController.makeIntegration(req, res);
   }
 
   async makeWebhookTest(req, res) {
-    return makeController.makeWebhookTest(req, res);
+    return this.makeController.makeWebhookTest(req, res);
+  }
+
+  async makeStatus(req, res) {
+    return this.makeController.makeStatus(req, res);
   }
 }
 

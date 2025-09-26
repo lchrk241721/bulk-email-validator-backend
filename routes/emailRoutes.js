@@ -1,12 +1,12 @@
 const express = require('express');
 const multer = require('multer');
-const emailController = require('../controllers/emailController');
+const emailController = require('../controllers/emailController'); // Fixed the filename
 
 const router = express.Router();
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 5 * 1024 * 1024
   },
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {

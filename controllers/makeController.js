@@ -1,19 +1,11 @@
 const emailValidatorService = require('../services/EmailValidatorService');
-
-// For Node.js environment, we need to import fetch if it's not available
-let fetch;
-if (typeof window === 'undefined') {
-  fetch = require('node-fetch');
-} else {
-  fetch = window.fetch;
-}
+const axios = require('axios'); // Using axios instead of fetch for better Node.js support
 
 class MakeController {
   async makeIntegration(req, res) {
     try {
       const { emails, webhook_url, api_key, format = 'json' } = req.body;
 
-      // Simple API key validation
       const expectedApiKey = process.env.MAKE_API_KEY || 'make_default_key_123';
       if (!api_key || api_key !== expectedApiKey) {
         return res.status(401).json({
@@ -42,11 +34,9 @@ class MakeController {
         format: format 
       });
 
-      // Validate emails
       const results = await emailValidatorService.validateBulkEmails(emails);
       const summary = emailValidatorService.getValidationSummary(results);
 
-      // Prepare response based on format
       let response;
       if (format === 'csv') {
         response = this.formatAsCSV(results);
@@ -73,7 +63,6 @@ class MakeController {
           timestamp: new Date().toISOString()
         };
         
-        // If webhook URL provided, send results there as well
         if (webhook_url) {
           try {
             await this.sendToWebhook(webhook_url, response, api_key);
@@ -103,7 +92,6 @@ class MakeController {
     try {
       const { webhook_url, api_key } = req.body;
 
-      // Validate API key
       const expectedApiKey = process.env.MAKE_API_KEY || 'make_default_key_123';
       if (!api_key || api_key !== expectedApiKey) {
         return res.status(401).json({
@@ -119,7 +107,6 @@ class MakeController {
         });
       }
 
-      // Test webhook with sample data
       const testData = {
         success: true,
         test: true,
@@ -133,13 +120,11 @@ class MakeController {
         }
       };
 
-      const webhookResponse = await this.sendToWebhook(webhook_url, testData, api_key);
+      await this.sendToWebhook(webhook_url, testData, api_key);
       
       res.json({
         success: true,
         message: 'Webhook test delivered successfully',
-        webhook_status: webhookResponse.status,
-        webhook_status_text: webhookResponse.statusText,
         timestamp: new Date().toISOString()
       });
 
@@ -154,7 +139,6 @@ class MakeController {
   }
 
   async makeStatus(req, res) {
-    // Simple status endpoint for Make.com to test connectivity
     res.json({
       status: 'success',
       message: 'Bulk Email Validator API is working',
@@ -163,6 +147,7 @@ class MakeController {
       endpoints: {
         make_integration: 'POST /api/email/make/integration',
         make_webhook_test: 'POST /api/email/make/webhook-test',
+        make_status: 'GET /api/email/make/status',
         features: [
           'Syntax validation',
           'Domain MX records check',
@@ -194,22 +179,26 @@ class MakeController {
   }
 
   async sendToWebhook(webhook_url, data, api_key) {
-    const response = await fetch(webhook_url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': api_key,
-        'User-Agent': 'BulkEmailValidator/1.0.0'
-      },
-      body: JSON.stringify(data),
-      timeout: 10000 // 10 second timeout
-    });
+    try {
+      const response = await axios.post(webhook_url, data, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': api_key,
+          'User-Agent': 'BulkEmailValidator/1.0.0'
+        },
+        timeout: 10000
+      });
 
-    if (!response.ok) {
-      throw new Error(`Webhook delivery failed: ${response.status} ${response.statusText}`);
+      return response.data;
+    } catch (error) {
+      if (error.response) {
+        throw new Error(`Webhook delivery failed: ${error.response.status} ${error.response.statusText}`);
+      } else if (error.request) {
+        throw new Error('Webhook delivery failed: No response received from server');
+      } else {
+        throw new Error(`Webhook delivery failed: ${error.message}`);
+      }
     }
-
-    return response;
   }
 }
 

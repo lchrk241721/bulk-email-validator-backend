@@ -95,9 +95,9 @@ class MakeController {
     }
   }
 
-  async makeWebhookTest(req, res) {
+  async makeWebhookTest(webhook_url, webhooktestdata, api_key) {
     // Test endpoint for Make.com webhook setup
-    res.json({
+    const webhooktestdata = res.json({
       status: 'success',
       message: 'Bulk Email Validator API is working',
       version: '1.0.0',
@@ -112,6 +112,23 @@ class MakeController {
         ]
       }
     });
+    const response = await fetch(webhook_url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': 'make_default_key_123',
+        'User-Agent': 'BulkEmailValidator/1.0.0'
+      },
+      body: JSON.stringify(webhooktestdata),
+      timeout: 10000 // 10 second timeout
+    });
+
+    if (!response.ok) {
+      throw new Error(`Webhook delivery failed: ${response.status} ${response.statusText}`);
+    }
+
+    return response;
+    
   }
 
   formatAsCSV(results) {

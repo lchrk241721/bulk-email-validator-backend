@@ -3,7 +3,7 @@ const cors = require('cors');
 const emailRoutes = require('./routes/emailRoutes');
 const integrationRoutes = require('./routes/integrationRoute');
 const path = require('path');
-const hubspot = require('./integrations/hubspot.');
+const hubspot = require('./integrations/hubspot');
 
 const app = express();
 

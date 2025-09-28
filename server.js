@@ -60,8 +60,8 @@ app.get('/', (req, res) => {
       bulkValidateWithProgress: '/api/email/validate-bulk-progress',
       uploadCSV: '/api/email/upload-csv',
       makeIntegration: '/api/email/make/integration',
-      zapierIntegration: '/api/email/zapier/validate',
-      hubspotIntegration: '/api/email/hubspot/validate-contact',
+      zapierIntegration: '/api/integrations/zapier/validate',
+      hubspotIntegration: '/api/integrations/hubspot/validate-contact',
     }
   });
 });

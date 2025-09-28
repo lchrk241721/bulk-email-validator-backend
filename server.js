@@ -1,7 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const emailRoutes = require('./routes/emailRoutes');
+const integrationRoutes = require('./routes/integrationRoute');
 const path = require('path');
+const hubspot = require('./integrations/hubspot.');
 
 const app = express();
 
@@ -50,14 +52,17 @@ app.get('/health', (req, res) => {
 app.get('/', (req, res) => {
   res.json({ 
     message: 'Bulk Email Validator API', 
-    version: '1.0.0',
+    version: '1.0.1',
     make_integration: '/make-integration',
     endpoints: {
       validate: '/api/email/validate',
       bulkValidate: '/api/email/validate-bulk',
       bulkValidateWithProgress: '/api/email/validate-bulk-progress',
       uploadCSV: '/api/email/upload-csv',
-      makeIntegration: '/api/email/make/integration'
+      makeIntegration: '/api/email/make/integration',
+      zapierIntegration: '/api/email/zapier/validate',
+      hubspotIntegration: '/api/email/hubspot/validate-contact',
+      gsheetsIntegration: '/api/email/google-sheets/validate'
     }
   });
 });

@@ -62,7 +62,6 @@ app.get('/', (req, res) => {
       makeIntegration: '/api/email/make/integration',
       zapierIntegration: '/api/email/zapier/validate',
       hubspotIntegration: '/api/email/hubspot/validate-contact',
-      gsheetsIntegration: '/api/email/google-sheets/validate'
     }
   });
 });

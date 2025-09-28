@@ -1,4 +1,5 @@
 const axios = require('axios');
+const emailValidatorService = require('../services/EmailValidatorService');
 
 class HubSpotIntegration {
   constructor() {

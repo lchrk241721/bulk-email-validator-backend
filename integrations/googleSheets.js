@@ -1,4 +1,5 @@
 const { google } = require('googleapis');
+const emailValidatorService = require('../services/EmailValidatorService');
 
 class GoogleSheetsIntegration {
   constructor() {

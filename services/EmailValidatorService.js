@@ -45,7 +45,7 @@ class EmailValidatorService {
     return this.disposableDomains.has(domain);
   }
 
-  isRoleBasedAccount(email) {
+  /*isRoleBasedAccount(email) {
     const username = email.split('@')[0].toLowerCase();
     
     // Check against common role-based prefixes
@@ -67,7 +67,154 @@ class EmailValidatorService {
     }
     
     return { isRole: false, type: 'personal' };
+  }*/
+
+  isRoleBasedAccount(email){
+    const username = email.split('@')[0].toLowerCase();
+    const domain = email.split('@')[1].toLowerCase();
+
+    //Layer 1: Exact prefix match (high confidence)
+    if (this.isExactRolePrefix(username)) {
+      return { isRole: true, type: 'exact_prefix', confidence: 'high' };
+    }
+
+    // Layer 2: Pattern-based detection (medium confidence)
+    const patternResult = this.detectRolePatterns(username);
+    if (patternResult.isRole) {
+      return patternResult;
+    }
+
+    // Layer 3: Domain-specific rules
+    const domainResult = this.applyDomainRules(username, domain);
+    if (domainResult.isRole) {
+      return domainResult;
+    }
+
+    // Layer 4: Personal name exclusion (reduce false positives)
+    if (this.isLikelyPersonalName(username)) {
+      return { isRole: false, type: 'personal_name', confidence: 'high' };
+    }
+
+    return { isRole: false, type: 'personal', confidence: 'medium' };
   }
+
+  isExactRolePrefix(username) {
+  const highConfidenceRoles = new Set([
+    // Administrative
+    'admin', 'administrator', 'webmaster', 'postmaster', 'hostmaster', 
+    'abuse', 'security', 'ssladmin',
+    
+    // Business Functions
+    'info', 'information', 'contact', 'support', 'help', 'service',
+    'sales', 'marketing', 'billing', 'accounts', 'payments', 'finance',
+    'hr', 'humanresources', 'careers', 'jobs', 'recruitment', 'resumes',
+    
+    // Communications
+    'newsletter', 'notifications', 'alerts', 'news', 'updates',
+    'noreply', 'no-reply', 'no.reply', 'donotreply',
+    
+    // Technical
+    'ftp', 'www', 'web', 'it', 'tech', 'technology', 'sysadmin', 'system',
+    'network', 'server', 'hosting', 'domain', 'register', 'registration',
+    
+    // Management & Executive
+    'ceo', 'cto', 'cfo', 'cio', 'director', 'manager', 'supervisor',
+    'owner', 'founder', 'cofounder', 'executive',
+    
+    // Departmental
+    'media', 'press', 'pr', 'publicrelations', 'legal', 'compliance',
+    'feedback', 'complaints', 'suggestions', 'ideas'
+  ]);
+  
+  return highConfidenceRoles.has(username);
+}
+
+detectRolePatterns(username) {
+  // Split by common separators
+  const parts = username.split(/[._-]/);
+  
+  // Single part usernames that match role patterns
+  if (parts.length === 1) {
+    // Role word followed by numbers (support2024, admin123)
+    if (/^(admin|support|info|help|sales|marketing|billing|account|service|hr|tech|it)[0-9]{1,4}$/.test(username)) {
+      return { isRole: true, type: 'role_with_numbers', confidence: 'medium' };
+    }
+    
+    // Generic role patterns (team, office, desk)
+    if (/^(team|office|desk|center|hq|global|corp)[0-9]*$/.test(username)) {
+      return { isRole: true, type: 'generic_role', confidence: 'medium' };
+    }
+  }
+  
+  // Multi-part usernames
+  if (parts.length >= 2) {
+    const firstPart = parts[0];
+    const secondPart = parts[1];
+    
+    // Role prefix combinations (admin.team, support.usa, hr.department)
+    const rolePrefixes = ['admin', 'support', 'info', 'help', 'sales', 'marketing', 'hr', 'it', 'tech'];
+    if (rolePrefixes.includes(firstPart)) {
+      return { isRole: true, type: 'role_combination', confidence: 'high' };
+    }
+    
+    // Department patterns (usa.sales, europe.support, tech.hr)
+    const departments = ['sales', 'support', 'marketing', 'hr', 'finance', 'tech', 'it', 'admin'];
+    if (departments.includes(secondPart)) {
+      return { isRole: true, type: 'departmental', confidence: 'medium' };
+    }
+    
+    // Location + role patterns (ny.support, london.sales)
+    const locationPattern = /^(?:[a-z]{2,10}\.)?(?:support|sales|marketing|hr|info)$/;
+    if (locationPattern.test(username)) {
+      return { isRole: true, type: 'location_role', confidence: 'medium' };
+    }
+  }
+  
+  return { isRole: false, type: 'no_pattern', confidence: 'low' };
+}
+
+applyDomainRules(username, domain) {
+  // Common personal email providers (less likely to have role accounts)
+  const personalDomains = [
+    'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 
+    'aol.com', 'icloud.com', 'protonmail.com'
+  ];
+  
+  // If it's a personal domain and looks like a personal name, likely not role
+  if (personalDomains.includes(domain)) {
+    if (this.isLikelyPersonalName(username)) {
+      return { isRole: false, type: 'personal_domain', confidence: 'high' };
+    }
+  }
+  
+  // Company domains might have more role accounts
+  // You could add domain-specific rules here
+  
+  return { isRole: false, type: 'no_domain_rules', confidence: 'low' };
+}
+
+isLikelyPersonalName(username) {
+  // Common personal name patterns (reduce false positives)
+  const personalPatterns = [
+    // First name only (john, sarah, mike)
+    /^[a-z]{2,15}$/,
+    
+    // First.Last (john.doe, sarah.smith)
+    /^[a-z]{2,20}\.[a-z]{2,20}$/,
+    
+    // First-Last (john-doe, sarah-smith)
+    /^[a-z]{2,20}-[a-z]{2,20}$/,
+    
+    // First initial + last (jdoe, ssmith)
+    /^[a-z][a-z]{3,15}$/,
+    
+    // Names with numbers (john123, sarah2024)
+    /^[a-z]{2,15}[0-9]{1,4}$/
+  ];
+  
+  // Check if username matches common personal name patterns
+  return personalPatterns.some(pattern => pattern.test(username));
+}
 
   async validateDomain(email) {
     try {
@@ -199,18 +346,27 @@ class EmailValidatorService {
       valid: 0,
       invalid: 0,
       reasons: {},
-      roleAccounts: 0
+      roleAccounts: 0,
+      roleBreakdown: {},
+      validityRate: 0
     };
 
     results.forEach(result => {
       if (result.valid) {
         summary.valid++;
         if (result.checks.roleAccount) summary.roleAccounts++;
+        // Track types of role accounts
+        const roleType = result.details?.roleAccount?.type || 'unknown';
+        summary.roleBreakdown[roleType] = (summary.roleBreakdown[roleType] || 0) + 1;
       } else {
         summary.invalid++;
         summary.reasons[result.reason] = (summary.reasons[result.reason] || 0) + 1;
       }
     });
+
+    summary.validityRate = summary.total > 0 
+    ? ((summary.valid / summary.total) * 100).toFixed(2) 
+    : 0;
 
     return summary;
   }
